@@ -2,6 +2,8 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -20,6 +22,8 @@ local Palette = {
     AccentHi     = Color3.fromRGB(168, 184, 255),
     AccentLo     = Color3.fromRGB(85, 100, 175),
     Risky        = Color3.fromRGB(220, 100, 100),
+    Success      = Color3.fromRGB(80, 200, 120),
+    Discord      = Color3.fromRGB(88, 101, 242),
 }
 
 local ChangelogColors = {
@@ -112,6 +116,7 @@ local Tweens = {
     FadeOut   = TweenInfo.new(0.14, Enum.EasingStyle.Quad,   Enum.EasingDirection.In),
     FadeIn    = TweenInfo.new(0.28, Enum.EasingStyle.Quint,  Enum.EasingDirection.Out),
     Fast      = TweenInfo.new(0.15, Enum.EasingStyle.Quad,   Enum.EasingDirection.Out),
+    Glass     = TweenInfo.new(0.8,  Enum.EasingStyle.Quad,   Enum.EasingDirection.Out),
 }
 
 local OuterWidth     = 540
@@ -132,6 +137,7 @@ function Loader.new(opts)
     self._entries = {}
     self._closing = false
     self._opened  = false
+    self.DiscordLink = opts.DiscordLink or "https://discord.gg/yourinvitecode"
 
     local ScreenGui = new("ScreenGui", {
         Name = "PolarisLoader_" .. HttpService:GenerateGUID(false),
@@ -146,103 +152,218 @@ function Loader.new(opts)
     end
     self.ScreenGui = ScreenGui
 
-    local MainFrame = new("Frame", {
+    -- ============================================================
+    -- GLASS BLUR BACKGROUND (70% blur)
+    -- ============================================================
+    
+    -- Blur effect - starts at 0, tweens to 70% glass feeling (BlurSize 24 = heavy blur)
+    local Blur = Instance.new("BlurEffect")
+    Blur.Size = 0
+    Blur.Parent = Lighting
+    self._blur = Blur
+    
+    -- Dark overlay for glass effect (makes it look like frosted glass)
+    local GlassOverlay = new("Frame", {
         Parent = ScreenGui,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.fromOffset(OuterWidth, OuterHeight),
-        BackgroundColor3 = Palette.Background,
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.25,
         BorderSizePixel = 0,
-        Visible = false,
-        ClipsDescendants = true,
+        ZIndex = 1,
     })
-    stroke(MainFrame, Palette.Border, 1)
-    topEdge(MainFrame, 1)
-    self.Frame = MainFrame
-    self._homePosition = UDim2.new(0.5, 0, 0.5, 0)
-
-    self._scaler = new("UIScale", {Parent = MainFrame, Scale = 1})
-
-    local TitleBar = new("Frame", {
-        Parent = MainFrame,
-        BackgroundColor3 = Palette.Element,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 20),
-        Active = true,
+    self._glassOverlay = GlassOverlay
+    
+    -- Subtle noise texture for glass feel
+    local GlassNoise = new("ImageLabel", {
+        Parent = ScreenGui,
+        Image = "rbxassetid://9968344227",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        ImageTransparency = 0.92,
+        ScaleType = Enum.ScaleType.Tile,
+        TileSize = UDim2.new(0, 128, 0, 128),
+        ZIndex = 0,
     })
-    self._titleBar = TitleBar
+    self._glassNoise = GlassNoise
+    
+    -- Animate blur to 70% glass feeling (BlurSize 24 = heavy blur)
+    task.defer(function()
+        tween(Blur, Tweens.Glass, {Size = 24})
+    end)
+    
+    -- Store cleanup for exit
+    self._effects = {
+        Blur = Blur,
+        GlassOverlay = GlassOverlay,
+        GlassNoise = GlassNoise,
+    }
 
-    new("Frame", {
+-- ============================================================
+-- MAIN LOADER UI (ON TOP OF GLASS)
+-- ============================================================
+
+local MainFrame = new("Frame", {
+    Parent = ScreenGui,
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.fromOffset(OuterWidth, OuterHeight),
+    BackgroundColor3 = Palette.Background,
+    BackgroundTransparency = 0.08, -- Slight transparency for glass feel
+    BorderSizePixel = 0,
+    Visible = false,
+    ClipsDescendants = true,
+    ZIndex = 10,
+})
+stroke(MainFrame, Palette.Border, 1)
+topEdge(MainFrame, 1)
+self.Frame = MainFrame
+self._homePosition = UDim2.new(0.5, 0, 0.5, 0)
+
+self._scaler = new("UIScale", {Parent = MainFrame, Scale = 1})
+
+local TitleBar = new("Frame", {
+    Parent = MainFrame,
+    BackgroundColor3 = Palette.Element,
+    BackgroundTransparency = 0.15,
+    BorderSizePixel = 0,
+    Size = UDim2.new(1, 0, 0, 20),
+    Active = true,
+})
+self._titleBar = TitleBar
+
+new("Frame", {
+    Parent = TitleBar,
+    BackgroundColor3 = Palette.Border,
+    BorderSizePixel = 0,
+    AnchorPoint = Vector2.new(0, 1),
+    Position = UDim2.new(0, 0, 1, 0),
+    Size = UDim2.new(1, 0, 0, 1),
+})
+
+local hasLogo = self.Logo and self.Logo ~= "" and self.Logo ~= "rbxassetid://0"
+local titleX = 8
+if hasLogo then
+    local Logo = new("ImageLabel", {
         Parent = TitleBar,
-        BackgroundColor3 = Palette.Border,
-        BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 0, 1, 0),
-        Size = UDim2.new(1, 0, 0, 1),
-    })
-
-    local hasLogo = self.Logo and self.Logo ~= "" and self.Logo ~= "rbxassetid://0"
-    local titleX = 8
-    if hasLogo then
-        local Logo = new("ImageLabel", {
-            Parent = TitleBar,
-            Image = self.Logo,
-            BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, 8, 0.5, 0),
-            Size = UDim2.new(0, 16, 0, 16),
-        })
-        self._logoScale = new("UIScale", {Parent = Logo, Scale = 1})
-        titleX = 30
-    end
-
-    self._title = new("TextLabel", {
-        Parent = TitleBar,
-        FontFace = BoldFont, TextSize = 12,
-        Text = self.Name,
-        TextColor3 = Palette.Text,
+        Image = self.Logo,
         BackgroundTransparency = 1,
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, titleX, 0.5, 0),
-        Size = UDim2.new(0, 280, 1, 0),
-        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.new(0, 8, 0.5, 0),
+        Size = UDim2.new(0, 16, 0, 16),
     })
+    self._logoScale = new("UIScale", {Parent = Logo, Scale = 1})
+    titleX = 30
+end
 
-    local CloseButton = new("TextButton", {
-        Parent = TitleBar,
-        FontFace = BoldFont, TextSize = 12,
-        AutoButtonColor = false, Text = "x",
-        TextColor3 = Palette.Dim,
-        BackgroundColor3 = Palette.Surface,
-        BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -4, 0.5, 0),
-        Size = UDim2.new(0, 14, 0, 12),
-    })
-    stroke(CloseButton, Palette.Border, 1)
-    CloseButton.MouseEnter:Connect(function()
-        tween(CloseButton, Tweens.Fast, {BackgroundColor3 = Palette.Risky, TextColor3 = Palette.Text})
-    end)
-    CloseButton.MouseLeave:Connect(function()
-        tween(CloseButton, Tweens.Fast, {BackgroundColor3 = Palette.Surface, TextColor3 = Palette.Dim})
-    end)
-    CloseButton.MouseButton1Down:Connect(function() self:Exit() end)
+self._title = new("TextLabel", {
+    Parent = TitleBar,
+    FontFace = BoldFont, TextSize = 12,
+    Text = self.Name,
+    TextColor3 = Palette.Text,
+    BackgroundTransparency = 1,
+    AnchorPoint = Vector2.new(0, 0.5),
+    Position = UDim2.new(0, titleX, 0.5, 0),
+    Size = UDim2.new(0, 280, 1, 0),
+    TextXAlignment = Enum.TextXAlignment.Left,
+})
 
-    local InnerContainer = new("Frame", {
-        Parent = MainFrame,
-        BackgroundColor3 = Palette.Inline,
-        BorderSizePixel = 0,
-        Position = UDim2.fromOffset(Padding, 20 + Padding),
-        Size = UDim2.new(1, -Padding * 2, 1, -20 - Padding * 2),
-        ClipsDescendants = true,
-    })
-    stroke(InnerContainer, Palette.SubBorder, 1)
-    self._inner = InnerContainer
+-- ====== DISCORD BUTTON ======
+local DiscordButton = new("TextButton", {
+    Parent = TitleBar,
+    FontFace = BoldFont, TextSize = 12,
+    AutoButtonColor = false, Text = "",
+    TextColor3 = Palette.Dim,
+    BackgroundColor3 = Palette.Surface,
+    BackgroundTransparency = 0.3,
+    BorderSizePixel = 0,
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -22, 0.5, 0),
+    Size = UDim2.new(0, 14, 0, 12),
+})
+stroke(DiscordButton, Palette.Border, 1)
+
+local DiscordIcon = new("ImageLabel", {
+    Parent = DiscordButton,
+    Image = "rbxassetid://106719693841339",
+    BackgroundTransparency = 1,
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0, 10, 0, 10),
+    ImageColor3 = Palette.Dim,
+})
+
+DiscordButton.MouseEnter:Connect(function()
+    tween(DiscordButton, Tweens.Fast, {BackgroundColor3 = Palette.Discord, BackgroundTransparency = 0})
+    tween(DiscordIcon, Tweens.Fast, {ImageColor3 = Palette.Text})
+end)
+DiscordButton.MouseLeave:Connect(function()
+    tween(DiscordButton, Tweens.Fast, {BackgroundColor3 = Palette.Surface, BackgroundTransparency = 0.3})
+    tween(DiscordIcon, Tweens.Fast, {ImageColor3 = Palette.Dim})
+end)
+
+DiscordButton.MouseButton1Down:Connect(function()
+    local link = self.DiscordLink
+    
+    pcall(function() setclipboard(link) end)
+    
+    pcall(function()
+        if syn and syn.request then
+            syn.request({Url = link, Method = "GET"})
+        end
+        if openurl then openurl(link) end
+        if shell and shell.open then shell.open(link) end
+        if http and http.request then
+            http.request({Url = link, Method = "GET"})
+        end
+    end)
+    
+    tween(DiscordButton, Tweens.Fast, {BackgroundColor3 = Palette.Discord, BackgroundTransparency = 0})
+    tween(DiscordIcon, Tweens.Fast, {ImageColor3 = Palette.Text})
+    task.delay(0.3, function()
+        tween(DiscordButton, Tweens.Fast, {BackgroundColor3 = Palette.Surface, BackgroundTransparency = 0.3})
+        tween(DiscordIcon, Tweens.Fast, {ImageColor3 = Palette.Dim})
+    end)
+end)
+
+-- ====== CLOSE BUTTON ======
+local CloseButton = new("TextButton", {
+    Parent = TitleBar,
+    FontFace = BoldFont, TextSize = 12,
+    AutoButtonColor = false, Text = "x",
+    TextColor3 = Palette.Dim,
+    BackgroundColor3 = Palette.Surface,
+    BackgroundTransparency = 0.3,
+    BorderSizePixel = 0,
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -4, 0.5, 0),
+    Size = UDim2.new(0, 14, 0, 12),
+})
+stroke(CloseButton, Palette.Border, 1)
+CloseButton.MouseEnter:Connect(function()
+    tween(CloseButton, Tweens.Fast, {BackgroundColor3 = Palette.Risky, BackgroundTransparency = 0, TextColor3 = Palette.Text})
+end)
+CloseButton.MouseLeave:Connect(function()
+    tween(CloseButton, Tweens.Fast, {BackgroundColor3 = Palette.Surface, BackgroundTransparency = 0.3, TextColor3 = Palette.Dim})
+end)
+CloseButton.MouseButton1Down:Connect(function() self:Exit() end)
+
+local InnerContainer = new("Frame", {
+    Parent = MainFrame,
+    BackgroundColor3 = Palette.Inline,
+    BackgroundTransparency = 0.3,
+    BorderSizePixel = 0,
+    Position = UDim2.fromOffset(Padding, 20 + Padding),
+    Size = UDim2.new(1, -Padding * 2, 1, -20 - Padding * 2),
+    ClipsDescendants = true,
+})
+stroke(InnerContainer, Palette.SubBorder, 1)
+self._inner = InnerContainer
 
     local function makePanel(headerText, x, width)
         local Panel = new("Frame", {
             Parent = InnerContainer,
             BackgroundColor3 = Palette.Surface,
+            BackgroundTransparency = 0.25,
             BorderSizePixel = 0,
             Position = UDim2.fromOffset(x, Padding),
             Size = UDim2.new(0, width, 1, -Padding * 2),
@@ -253,6 +374,7 @@ function Loader.new(opts)
         local Header = new("Frame", {
             Parent = Panel,
             BackgroundColor3 = Palette.Element,
+            BackgroundTransparency = 0.2,
             BorderSizePixel = 0,
             Size = UDim2.new(1, 0, 0, 18),
         })
@@ -313,6 +435,7 @@ function Loader.new(opts)
         Parent = RightPanel,
         Image = "",
         BackgroundColor3 = Palette.Background,
+        BackgroundTransparency = 0.2,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 8, 0, 26),
         Size = UDim2.new(1, -16, 0, 92),
@@ -382,6 +505,7 @@ function Loader.new(opts)
         Parent = RightPanel,
         AutoButtonColor = false, Text = "",
         BackgroundColor3 = Palette.Accent,
+        BackgroundTransparency = 0.1,
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, -8, 1, -8),
@@ -412,12 +536,12 @@ function Loader.new(opts)
     })
 
     LoadButton.MouseEnter:Connect(function()
-        tween(LoadButton,       Tweens.Fast, {BackgroundColor3 = Palette.AccentHi})
+        tween(LoadButton,       Tweens.Fast, {BackgroundColor3 = Palette.AccentHi, BackgroundTransparency = 0})
         tween(LoadButtonStroke, Tweens.Fast, {Color = Palette.Text})
         tween(LoadIndicator,    Tweens.Fast, {Size = UDim2.new(0, 6, 0, 6)})
     end)
     LoadButton.MouseLeave:Connect(function()
-        tween(LoadButton,       Tweens.Fast, {BackgroundColor3 = Palette.Accent})
+        tween(LoadButton,       Tweens.Fast, {BackgroundColor3 = Palette.Accent, BackgroundTransparency = 0.1})
         tween(LoadButtonStroke, Tweens.Fast, {Color = Palette.AccentHi})
         tween(LoadIndicator,    Tweens.Fast, {Size = UDim2.new(0, 4, 0, 4)})
     end)
@@ -661,6 +785,7 @@ function Loader:AddGame(opts)
         FontFace = RegularFont, TextSize = 12,
         AutoButtonColor = false, Text = "",
         BackgroundColor3 = Palette.Element,
+        BackgroundTransparency = 0.2,
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 22),
         LayoutOrder = #self.Games + 1,
@@ -691,12 +816,12 @@ function Loader:AddGame(opts)
 
     GameButton.MouseEnter:Connect(function()
         if self.Current == gameRecord then return end
-        tween(GameButton, Tweens.Fast, {BackgroundColor3 = Palette.Hover})
+        tween(GameButton, Tweens.Fast, {BackgroundColor3 = Palette.Hover, BackgroundTransparency = 0})
         tween(GameLabel,  Tweens.Fast, {TextColor3 = Palette.Text})
     end)
     GameButton.MouseLeave:Connect(function()
         if self.Current == gameRecord then return end
-        tween(GameButton, Tweens.Fast, {BackgroundColor3 = Palette.Element})
+        tween(GameButton, Tweens.Fast, {BackgroundColor3 = Palette.Element, BackgroundTransparency = 0.2})
         tween(GameLabel,  Tweens.Fast, {TextColor3 = Palette.Dim})
     end)
     GameButton.MouseButton1Down:Connect(function() self:_select(gameRecord) end)
@@ -728,7 +853,33 @@ end
 function Loader:Exit()
     if not self.ScreenGui or self._closing then return end
     self._closing = true
+    
+    -- Clean up glass effects
+    local effects = self._effects
+    if effects then
+        -- Fade blur out
+        if effects.Blur then
+            tween(effects.Blur, Tweens.FadeOut, {Size = 0})
+        end
+        
+        -- Fade glass overlay
+        if effects.GlassOverlay then
+            tween(effects.GlassOverlay, Tweens.FadeOut, {BackgroundTransparency = 1})
+        end
+        
+        -- Fade noise
+        if effects.GlassNoise then
+            tween(effects.GlassNoise, Tweens.FadeOut, {ImageTransparency = 1})
+        end
+        
+        task.delay(0.6, function()
+            if effects.Blur then effects.Blur:Destroy() end
+            if effects.GlassOverlay then effects.GlassOverlay:Destroy() end
+            if effects.GlassNoise then effects.GlassNoise:Destroy() end
+        end)
+    end
 
+    -- Shut down loader
     local entryCount = #self._entries
     for index, entry in ipairs(self._entries) do
         if entry.Scale then
