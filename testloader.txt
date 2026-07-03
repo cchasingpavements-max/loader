@@ -210,6 +210,7 @@ function Loader.new(opts)
         TextXAlignment = Enum.TextXAlignment.Left,
     })
 -- ====== DISCORD BUTTON ======
+-- ====== DISCORD BUTTON ======
 local DiscordButton = new("TextButton", {
     Parent = TitleBar,
     FontFace = BoldFont, TextSize = 12,
@@ -225,7 +226,7 @@ stroke(DiscordButton, Palette.Border, 1)
 
 local DiscordIcon = new("ImageLabel", {
     Parent = DiscordButton,
-    Image = "rbxassetid://10747364139",
+    Image = "rbxassetid://106719693841339",
     BackgroundTransparency = 1,
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
