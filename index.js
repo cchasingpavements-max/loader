@@ -52,18 +52,20 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.commandName === 'graveyard') {
         const embed = new EmbedBuilder()
-            .setColor(0x8B0000)
-            .setTitle('☣️ UMBRELLA CORP | SECTOR G-7')
-            .setDescription(
-                'This is a quarantine zone.\n\n' +
-                '**Protocol:** Do not type here. If your device sent a file here, leave it. The AI will analyze it.\n\n' +
-                '**Warning:** Typing in this channel is a violation of Umbrella Security Policy. You will be terminated instantly.'
-            )
-            .addFields(
-                { name: '⬆️ What to do', value: 'Absolutely nothing. Just read.', inline: true },
-                { name: '⚠️ Violation', value: 'Instant Permaban. No appeals.', inline: true }
-            )
-            .setFooter({ text: 'Umbrella Cyber Division' });
+    .setColor(0x8B0000)
+    .setTitle('☣️ SECTOR G-7')
+    .setDescription(
+        'So you got RAT\'d. Cool.\n\n' +
+        'This channel is where your infected files end up. We don\'t care if you\'re a victim or the attacker—both are equally dumb in our book.\n\n' +
+        '**Rule:** Don\'t type here. Seriously. We\'re not explaining this twice.\n' +
+        '**Consequence:** You type, you\'re gone. No appeals, no modmail, no crying in DMs. We won\'t even read them.\n\n' +
+        'Honestly, if you get banned, that\'s a you problem. Take the L and move on.'
+    )
+    .addFields(
+        { name: '⬆️ Your job', value: 'Drop the file. Walk away. Forget this exists.', inline: true },
+        { name: '🚫 Our job', value: 'Ban you if you breathe here. Simple.', inline: true }
+    )
+    .setFooter({ text: 'Umbrella IT • We don\'t get paid enough for this.' });
 
         await interaction.reply({ embeds: [embed] });
     }
