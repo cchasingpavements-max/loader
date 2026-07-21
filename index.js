@@ -20,6 +20,11 @@ client.once('ready', async () => {
         const guild = client.guilds.cache.get(GUILD_ID);
         if (!guild) return console.log('❌ Guild not found!');
 
+        // 🔥 DELETE all old slash commands in this server
+        await guild.commands.set([]);
+        console.log('✅ All old commands wiped.');
+
+        // ➕ Register only the new /containment command
         await guild.commands.create(
             new SlashCommandBuilder()
                 .setName('containment')
@@ -31,6 +36,7 @@ client.once('ready', async () => {
     }
 });
 
+// --- THE TRAP: Auto-ban anyone who types in the trap channel ---
 client.on('messageCreate', async (message) => {
     if (!message.guild || message.author.bot) return;
 
@@ -44,17 +50,18 @@ client.on('messageCreate', async (message) => {
     }
 });
 
+// --- THE COMMAND: /containment ---
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) return;
 
     if (interaction.commandName === 'containment') {
         const embed = new EmbedBuilder()
             .setColor(0x8B0000)
-            .setTitle('Umbrella Corporation')
+            .setTitle('☣️ UMBRELLA CORPORATION')  // ✅ Changed from SECTOR G-7
             .setDescription(
                 'don\'t type in this channel. if you do, you\'re banned. no warnings. no appeals.'
             )
-            .setFooter({ text: 'death' });
+            .setFooter({ text: 'Umbrella IT' });
 
         await interaction.reply({ embeds: [embed] });
     }
