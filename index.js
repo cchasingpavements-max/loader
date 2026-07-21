@@ -1,6 +1,5 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-// Reads your secret keys from viirless.net
 const TOKEN = process.env.TOKEN;
 const TRAP_CHANNEL_ID = process.env.TRAP_CHANNEL_ID;
 const GUILD_ID = process.env.GUILD_ID;
@@ -23,16 +22,15 @@ client.once('ready', async () => {
 
         await guild.commands.create(
             new SlashCommandBuilder()
-                .setName('graveyard')
+                .setName('containment')
                 .setDescription('Shows the Umbrella Corp containment protocol.')
         );
-        console.log('✅ /graveyard command registered!');
+        console.log('✅ /containment command registered!');
     } catch (error) {
         console.error(error);
     }
 });
 
-// --- THE TRAP: Auto-ban anyone who types here ---
 client.on('messageCreate', async (message) => {
     if (!message.guild || message.author.bot) return;
 
@@ -46,26 +44,17 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// --- THE COMMAND: /graveyard ---
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) return;
 
-    if (interaction.commandName === 'graveyard') {
+    if (interaction.commandName === 'containment') {
         const embed = new EmbedBuilder()
-    .setColor(0x8B0000)
-    .setTitle('☣️ SECTOR G-7')
-    .setDescription(
-        'So you got RAT\'d. Cool.\n\n' +
-        'This channel is where your infected files end up. We don\'t care if you\'re a victim or the attacker—both are equally dumb in our book.\n\n' +
-        '**Rule:** Don\'t type here. Seriously. We\'re not explaining this twice.\n' +
-        '**Consequence:** You type, you\'re gone. No appeals, no modmail, no crying in DMs. We won\'t even read them.\n\n' +
-        'Honestly, if you get banned, that\'s a you problem. Take the L and move on.'
-    )
-    .addFields(
-        { name: '⬆️ Your job', value: 'Drop the file. Walk away. Forget this exists.', inline: true },
-        { name: '🚫 Our job', value: 'Ban you if you breathe here. Simple.', inline: true }
-    )
-    .setFooter({ text: 'Umbrella IT • We don\'t get paid enough for this.' });
+            .setColor(0x8B0000)
+            .setTitle('Umbrella Corporation')
+            .setDescription(
+                'don\'t type in this channel. if you do, you\'re banned. no warnings. no appeals.'
+            )
+            .setFooter({ text: 'death' });
 
         await interaction.reply({ embeds: [embed] });
     }
